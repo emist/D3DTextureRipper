@@ -20,7 +20,7 @@ Keep your source up to date with:
 
 [Windows Debug Help Library](http://msdn.microsoft.com/en-us/library/windows/desktop/ms679309.aspx)
 
-The windebug dlls need to be placed in the bin\ folder of WindowerClient for the project to execute properly.
+The windebug dlls need to be placed in the bin\ folder of Injector for the project to execute properly.
 
 <h2>Compiling</h2>
 
