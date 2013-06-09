@@ -10,14 +10,19 @@
 #include <d3dx9.h>
 #include <Detours.h>
 #include <thread>
+#include <fstream>
+#include <Shlwapi.h>
 
 #pragma comment(lib, "Detours.lib")
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(lib, "d3dx9.lib")
+#pragma comment(lib, "Shlwapi.lib")
 
 using namespace std;
 
 vector<long> texturePointers;
+ofstream error_file("Error.txt");
+std::stringstream sstm;
 
 typedef struct _INIT_STRUCT 
 {
@@ -30,6 +35,20 @@ extern "C" typedef HRESULT (WINAPI *pSetTexture)(LPDIRECT3DDEVICE9 pDevice, DWOR
 
 pSetTexture SetTexture;
 
+bool DirExists(const std::string& dirName_in)
+{
+	DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
+	if (ftyp == INVALID_FILE_ATTRIBUTES)
+		return false;  
+
+	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+		return true;   
+
+	return false;    
+}
+
+
+
 bool WINAPI Contains(long textureP)
 {
 	for (vector<long>::iterator iter = texturePointers.begin(); iter != texturePointers.end(); iter++)
@@ -40,19 +59,39 @@ bool WINAPI Contains(long textureP)
 	return false;
 }
 
+string TexturePath() 
+{
+	char buffer[MAX_PATH];
+	ZeroMemory(buffer, MAX_PATH);
+	GetModuleFileName( NULL, buffer, MAX_PATH );
+	PathRemoveFileSpec(buffer);
+	string filename(buffer);
+	filename.append("\\Textures");
+	return filename;
+}
+
 HRESULT WINAPI MySetTexture(LPDIRECT3DDEVICE9 pDevice, DWORD stage, IDirect3DBaseTexture9 * texture)
 {
 	if(!Contains((long)texture))
 	{
-		std::stringstream sstm;
-		string filename = "C:\\Users\\emist\\Desktop\\Textures\\";
-		sstm << filename << (long)texture << ".bmp";
+		string filename = TexturePath();
 		texturePointers.push_back((long)texture);
-		D3DXSaveTextureToFile(sstm.str().c_str(), D3DXIFF_BMP, texture, NULL);
+		if (CreateDirectory(filename.c_str(), NULL) ||
+		ERROR_ALREADY_EXISTS == GetLastError())
+		{
+			sstm << filename << "\\" << (long)texture << ".bmp";
+			error_file << "Filename is " << sstm.str() << endl;
+			D3DXSaveTextureToFile(sstm.str().c_str(), D3DXIFF_BMP, texture, NULL);
+			sstm.str("");
+		}
+		else
+		{
+			error_file << "Can't create " << filename << endl;
+		}
+		
 	}
 	return SetTexture(pDevice, stage, texture);
 }
-
 extern "C" __declspec(dllexport) void InstallHook(LPVOID message)
 {
 	PINIT_STRUCT messageStruct = reinterpret_cast<PINIT_STRUCT>(message);	  
